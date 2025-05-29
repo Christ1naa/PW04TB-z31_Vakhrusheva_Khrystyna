@@ -12,6 +12,7 @@
     }
     .container {
       max-width: 700px;
+      margin: auto;
       background-color: white;
       padding: 20px;
       border-radius: 10px;
@@ -20,19 +21,33 @@
     input, select, button {
       width: 100%;
       padding: 10px;
-      margin-top: 10px;
+      margin-top: 5px;
       border-radius: 5px;
       border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    label {
+      margin-top: 10px;
+      display: block;
     }
     h2 {
       color: #333;
+      text-align: center;
     }
     .results {
       background-color: #e6ffe6;
-      padding: 10px;
-      margin-top: 15px;
+      padding: 15px;
+      margin-top: 20px;
       border: 1px solid #99cc99;
       border-radius: 5px;
+    }
+    .error {
+      background-color: #ffe6e6;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #cc6666;
+      border-radius: 5px;
+      color: #a00;
     }
   </style>
 </head>
@@ -41,19 +56,19 @@
     <h2>Калькулятор струмів короткого замикання</h2>
 
     <label>Напруга, кВ:</label>
-    <input type="number" id="voltage" value="10">
+    <input type="number" id="voltage" value="10" placeholder="Наприклад: 10">
 
     <label>Потужність КЗ, MВА (для трифазного):</label>
-    <input type="number" id="skz" value="500">
+    <input type="number" id="skz" value="500" placeholder="Наприклад: 500">
 
-    <label>Імпеданс Z (ом):</label>
-    <input type="number" id="z" value="0.5">
+    <label>Імпеданс Z, Ом (для однофазного):</label>
+    <input type="number" id="z" value="0.5" placeholder="Наприклад: 0.5">
 
     <label>Час дії струму КЗ, сек:</label>
-    <input type="number" id="time" value="1">
+    <input type="number" id="time" value="1" placeholder="Наприклад: 1">
 
     <label>Перетин кабелю, мм²:</label>
-    <input type="number" id="s" value="150">
+    <input type="number" id="s" value="150" placeholder="Наприклад: 150">
 
     <label>Матеріал кабелю:</label>
     <select id="material">
@@ -70,10 +85,15 @@
     <button onclick="calculate()">Розрахувати</button>
 
     <div class="results" id="results"></div>
+    <div class="error" id="error" style="display: none;"></div>
   </div>
 
   <script>
     function calculate() {
+      const errorDiv = document.getElementById('error');
+      errorDiv.style.display = 'none';
+      errorDiv.innerText = '';
+
       const U = parseFloat(document.getElementById('voltage').value) * 1000; // В у Вольтах
       const Skz = parseFloat(document.getElementById('skz').value) * 1e6; // В ВА
       const Z = parseFloat(document.getElementById('z').value);
@@ -81,6 +101,13 @@
       const S = parseFloat(document.getElementById('s').value);
       const material = document.getElementById('material').value;
       const type = document.getElementById('type').value;
+
+      // Перевірка введення
+      if (isNaN(U) || U <= 0 || isNaN(Z) || Z <= 0 || isNaN(t) || t <= 0 || isNaN(S) || S <= 0 || (type === '3' && (isNaN(Skz) || Skz <= 0))) {
+        errorDiv.innerText = 'Будь ласка, введіть коректні значення у всі поля.';
+        errorDiv.style.display = 'block';
+        return;
+      }
 
       const K = material === 'm' ? 143 : 76; // Мідь або алюміній
 
@@ -94,12 +121,14 @@
       const I2t = Ikz * Ikz * t;
       const thermal_limit = K * K * S * S;
       const dynamic_limit = 2.5 * Ikz;
+      const dynamic_check_limit = 200 * S; // Умовна межа динамічної стійкості (приклад)
 
       document.getElementById('results').innerHTML = `
-        <b>Струм КЗ:</b> ${Ikz.toFixed(2)} A<br>
-        <b>I²·t:</b> ${I2t.toFixed(2)}<br>
-        <b>Термічна стійкість (K²·S²):</b> ${thermal_limit.toFixed(2)} (${I2t <= thermal_limit ? '✅' : '❌'})<br>
-        <b>Динамічна стійкість (2.5·Iкз):</b> ${dynamic_limit.toFixed(2)} A
+        <b>Струм КЗ (Iкз):</b> ${Ikz.toFixed(2)} A<br>
+        <b>I²·t:</b> ${I2t.toFixed(2)} A²·с<br>
+        <b>Термічна стійкість (K²·S²):</b> ${thermal_limit.toFixed(2)} ${I2t <= thermal_limit ? '✅' : '❌'}<br>
+        <b>Динамічна стійкість (умовна межа):</b> ${dynamic_check_limit.toFixed(2)} A ${Ikz <= dynamic_check_limit ? '✅' : '❌'}<br>
+        <b>Піковий струм (2.5·Iкз):</b> ${dynamic_limit.toFixed(2)} A
       `;
     }
   </script>
